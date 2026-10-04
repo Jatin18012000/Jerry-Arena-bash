@@ -1,7 +1,12 @@
 # `src/physics/`
 
-**Status: planned — not implemented.** This folder is a reserved boundary created in Phase 1.
+**Status: implemented (Phase 2).** Rapier is the authority for the *environment* only.
 
-Rapier integration: character controllers, arena collision, knockback. Dependency is installed; nothing is wired yet.
+- `loadRapier()` — imports `@dimforge/rapier3d-compat` dynamically (own build chunk; the WASM is
+  embedded, so it works offline) and initialises it once (cached promise).
+- `PhysicsWorld` — owns a Rapier `World` holding the static stage colliders (floor, walls), and
+  answers `castStageRay` queries that fighters use to stop at floors and walls. Also `prime()`,
+  `step(dt)` with the game loop's fixed `dt`, `CollisionGroups`, and `dispose()` that frees the world.
 
-See `docs/ARCHITECTURE.md` for the module map and phase plan.
+Not physics: fighter motion and jump arcs (`fighters/motion.ts`), fighter-vs-fighter spacing
+(`fighters/spacing.ts`), and combat hit/hurt boxes (Phase 3, separate data).

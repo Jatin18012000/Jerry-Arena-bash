@@ -3,7 +3,8 @@
 Status legend: **Implemented** = exists in code and is tested · **Planned** = approved scope, not built ·
 **Future** = intended after the first playable release, details open.
 
-> As of Phase 1 nothing in this document is implemented except the engine foundation it runs on.
+> As of Phase 2 only the engine foundation, Rapier physics, the fight camera and placeholder 2.5D
+> movement (walk, jump, crouch, facing, pushboxes) are implemented. Everything else here is planned.
 
 ## Pitch
 
@@ -62,5 +63,6 @@ No arena geometry exists yet. The Phase 1 floor/grid is a debug scene only.
 
 ## Open design questions
 
-- Movement model: strict 2D plane (2.5D) vs. 3D sidestep. Recommended starting point: 2.5D with optional sidestep later.
+- Movement model: **decided for now — 2.5D** (fighters move on one plane; implemented in Phase 2).
+  An optional 3D sidestep remains open for later.
 - Online play is out of scope (no backend). Local versus only.

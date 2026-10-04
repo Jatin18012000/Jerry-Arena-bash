@@ -1,7 +1,11 @@
 # `src/camera/`
 
-**Status: planned — not implemented.** This folder is a reserved boundary created in Phase 1.
+**Status: implemented (Phase 2).**
 
-Fight camera rig: keeps both fighters framed, zooms with distance, handles intros/KO shots.
+`FightCamera` (presentation only — reads fighters, never writes the simulation) frames both
+fighters side-on: centres on their midpoint (clamped to stage bounds), backs off so both plus a
+margin fit the horizontal field of view around that centre, follows jumps partially, and uses its
+own configurable FOV (default 32°) to limit perspective lean. `update(dt, ...)` smooths in the fixed step; `apply(camera, alpha)`
+interpolates at render time. `frameFighters()` is the pure framing function.
 
-See `docs/ARCHITECTURE.md` for the module map and phase plan.
+Planned later: intro / KO shots, camera punch-in on supers, screen shake (with `src/effects/`).

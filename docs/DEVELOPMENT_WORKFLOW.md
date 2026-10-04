@@ -51,6 +51,16 @@ Target tools: **Blender 5.2.2 LTS** with the **Blender MCP Pro** add-on.
 
 ## Verifying the browser build
 
-`npm run dev`, open http://localhost:5173. Expected in Phase 1: dark scene, purple grid, pink cube,
-a debug HUD showing state `debug.foundation`, rising `sim steps`, and WASD/arrow keys moving the cube.
-No console errors.
+`npm run dev`, open http://localhost:5173. Expected in Phase 2: the movement sandbox (HUD state
+`sandbox.movement`) with a pink P1 capsule and a cyan P2 capsule facing each other on a purple grid
+between two translucent walls, rising `sim steps`, and:
+
+- A/D or ←/→ walk P1 (forward is faster than back); P1 stops at P2's pushbox and pushes P2 slowly.
+- W/↑ jumps (with a direction held: committed forward/back jump); a point-blank forward jump crosses
+  over P2 and both turn around on landing.
+- S/↓ crouches (capsule squashes, no walking).
+- Walking back stops at a 6.5 m gap or at the wall; the camera zooms out to keep both framed.
+
+`?state=debug.foundation` still opens the Phase 1 scene (pink cube, WASD moves it). No console errors
+in either. Also check the production build with `npm run build && npm run preview`, which loads
+Rapier from its own lazily imported chunk.

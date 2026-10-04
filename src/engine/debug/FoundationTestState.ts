@@ -9,6 +9,7 @@ import {
 import type { EngineContext } from '../Engine';
 import { InputAction } from '../input';
 import type { GameState } from '../state';
+import type { DebugInfoSource } from './DebugHud';
 
 export const FOUNDATION_TEST_STATE_ID = 'debug.foundation';
 
@@ -16,7 +17,7 @@ export const FOUNDATION_TEST_STATE_ID = 'debug.foundation';
  * Phase 1 runtime proof only: a floor, a grid and a placeholder cube that the
  * movement actions nudge. This is NOT an arena, fighter or combat system.
  */
-export function createFoundationTestState(): GameState<EngineContext> {
+export function createFoundationTestState(): GameState<EngineContext> & DebugInfoSource {
   const root = new Group();
   root.name = 'debug.foundation';
 
@@ -53,6 +54,7 @@ export function createFoundationTestState(): GameState<EngineContext> {
       cubeMaterial.dispose();
       grid.dispose();
     },
+    debugLines: () => ['WASD / arrows: move test cube'],
     update(dt, { input }) {
       cube.rotation.y += dt * 0.8;
       const dx = Number(input.isDown(InputAction.Right)) - Number(input.isDown(InputAction.Left));

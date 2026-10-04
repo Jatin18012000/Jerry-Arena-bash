@@ -1,6 +1,6 @@
 # Combat System
 
-> **Status: Planned — no combat code exists.** Phase 1 deliberately implements no combat.
+> **Status: Planned — no combat code exists.** Phases 1–2 deliberately implement no combat.
 > This document records the intended design so later phases build against an agreed spec.
 
 ## Implemented foundations combat will build on
@@ -10,6 +10,10 @@
 | Fixed 60 Hz simulation step | `src/engine/GameLoop.ts` | Combat logic will be counted in frames (1 frame = 1/60 s). |
 | Per-step input snapshots | `src/engine/input/InputManager.ts` | `poll()` once per step; taps between steps are never dropped. |
 | Logical actions | `src/engine/input/actions.ts` | `lightAttack`, `heavyAttack`, `kick`, `block`, `special`, directions. |
+| Fighter intents | `src/fighters/controllers.ts` | Devices/AI → `FighterIntent`; the simulation consumes intents only. |
+| Deterministic movement | `src/fighters/motion.ts` | Walk, committed jumps, crouch, facing; exact float64; replay-tested. |
+| Pushboxes | `src/fighters/spacing.ts` | Deterministic fighter-vs-fighter spacing, max separation, walls. Not physics. |
+| Posture | `MotionState.posture` | `stand` / `walkForward` / `walkBack` / `crouch` / `air` — Phase 3 hurtboxes key off this. |
 
 ## Planned design
 
@@ -25,8 +29,17 @@ shown in Training mode.
 
 ### Hit detection
 Simple primitive volumes (spheres/capsules/boxes) attached to animation bones, tested each step.
-Rapier may be used for arena collision and pushboxes; hit detection stays deterministic and
+Hit/hurt boxes are their own data: they must not be derived from the Rapier environment shape
+(capsule radius/height), which only exists for floor/wall collision and does not change when
+crouching. Rapier is used for arena collision only; pushboxes are already deterministic gameplay
+code (Phase 2). Hit detection stays deterministic and
 frame-driven rather than relying on physics contact events.
+
+### Pushboxes and cross-ups (Phase 2 decision, tunable)
+The pushbox is deliberately shorter than the body: `pushHeight` 1.0 m vs a 1.8 m fighter
+(`PLACEHOLDER_FIGHTER.body`). A point-blank forward jump therefore crosses over the opponent and
+both turn around on landing; a mid-range jump lands in front. Regression tests pin both behaviours.
+Retune `pushHeight`, `pushHalfWidth` and the jump values against VERA and REX.
 
 ### States
 Idle, walk, crouch, jump, attack (startup/active/recovery), hitstun, blockstun, knockdown, getup, KO.
