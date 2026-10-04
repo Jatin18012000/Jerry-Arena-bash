@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+coverage/
+
+# Logs
+npm-debug.log*
+*.log
+
+# Environment / secrets (no runtime keys are used; never commit any)
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Blender autosave / backup files (keep .blend sources, drop backups)
+*.blend1
+*.blend2
+*.blend@
+
+# Temporary files
+tmp/
+*.tmp
