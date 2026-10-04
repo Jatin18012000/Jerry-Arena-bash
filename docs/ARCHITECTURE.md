@@ -65,7 +65,7 @@ verified by running the app in a browser (see DEVELOPMENT_WORKFLOW.md).
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 1 — Foundation | Tooling, engine runtime, docs, tests | **Implemented (web).** Blender setup pending — see DEVELOPMENT_WORKFLOW.md |
+| 1 — Foundation | Tooling, engine runtime, docs, tests | **Done** — web foundation plus local Blender project setup (see DEVELOPMENT_WORKFLOW.md) |
 | 2 | Fight camera, Rapier integration, placeholder capsule fighters, basic movement | Planned |
 | 3 | Combat core (frame data, hit/hurt boxes, health, rounds) | Planned |
 | 4 | VERA and REX models/animations via Blender → GLB | Planned |

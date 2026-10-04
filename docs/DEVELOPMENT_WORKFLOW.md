@@ -36,20 +36,18 @@ Target tools: **Blender 5.2.2 LTS** with the **Blender MCP Pro** add-on.
 
 ### Status as of Phase 1
 
-**Not done.** Phase 1 was carried out in a remote cloud container that has no Blender installation
-and no access to the developer's Mac, so the following steps were **not performed** and must be done
-on the machine that runs Blender:
+**Done** (on the developer's Mac, 2026-10-04):
 
-1. In Blender → Preferences → Add-ons, check which of `blender_mcp_pro` and the older `blender_mcp`
-   is enabled and which one the MCP client is actually connected to.
-2. If the older `blender_mcp` is redundant (MCP Pro is the one in use and responds without it),
-   **disable** it — do not uninstall or delete it.
-3. Confirm Blender MCP Pro still responds (e.g. ask the MCP client for the current scene info).
-4. Save a copy of the current startup file before changing anything
-   (File → Save As… `startup_backup.blend`), and do **not** use File → Defaults → Save Startup File.
-5. Create a clean, empty scene and save it as `blender/BRAIN_ROT_LEGENDS.blend`
-   (metric units, scale 1.0). Do not add characters yet.
-6. Commit the `.blend` file (`*.blend1` backups are git-ignored).
+- The MCP server (127.0.0.1:9877) is provided by the `blender_mcp_pro` extension
+  (`bl_ext.user_default.blender_mcp_pro`). The older single-file `blender_mcp` add-on is installed
+  but was already disabled, so there is no conflict; it was left installed and disabled.
+- Blender's startup file was not modified.
+- `blender/BRAIN_ROT_LEGENDS.blend` is the canonical project file: one empty scene named
+  `BRAIN_ROT_LEGENDS` (no objects, meshes, materials, rigs or actions), Metric units, unit scale 1.0,
+  metres / kilograms / seconds, 60 fps, frames 1–240, EEVEE, 1920×1080, AgX view transform.
+  It was generated with `blender --background --factory-startup`, so it carries no personal
+  startup-file content.
+- `*.blend1` / `*.blend2` backups are git-ignored; the `.blend` itself is committed.
 
 ## Verifying the browser build
 
