@@ -27,7 +27,7 @@ describe('InputManager', () => {
   });
 
   it('reports held, just pressed and just released per poll', () => {
-    target.dispatchEvent(key('keydown', 'KeyJ'));
+    target.dispatchEvent(key('keydown', 'KeyU'));
     input.poll();
     expect(input.isDown(InputAction.LightAttack)).toBe(true);
     expect(input.justPressed(InputAction.LightAttack)).toBe(true);
@@ -36,15 +36,15 @@ describe('InputManager', () => {
     expect(input.isDown(InputAction.LightAttack)).toBe(true);
     expect(input.justPressed(InputAction.LightAttack)).toBe(false);
 
-    target.dispatchEvent(key('keyup', 'KeyJ'));
+    target.dispatchEvent(key('keyup', 'KeyU'));
     input.poll();
     expect(input.isDown(InputAction.LightAttack)).toBe(false);
     expect(input.justReleased(InputAction.LightAttack)).toBe(true);
   });
 
   it('does not lose a tap that starts and ends between two polls', () => {
-    target.dispatchEvent(key('keydown', 'KeyK'));
-    target.dispatchEvent(key('keyup', 'KeyK'));
+    target.dispatchEvent(key('keydown', 'KeyI'));
+    target.dispatchEvent(key('keyup', 'KeyI'));
     input.poll();
     expect(input.justPressed(InputAction.HeavyAttack)).toBe(true);
     input.poll();
@@ -85,13 +85,13 @@ describe('InputManager', () => {
   });
 
   it('supports rebinding', () => {
-    input.setBindings({ ...DEFAULT_KEY_BINDINGS, block: ['KeyQ'] });
-    target.dispatchEvent(key('keydown', 'KeyI'));
+    input.setBindings({ ...DEFAULT_KEY_BINDINGS, blockHigh: ['KeyQ'] });
+    target.dispatchEvent(key('keydown', 'KeyJ'));
     target.dispatchEvent(key('keydown', 'KeyQ'));
     input.poll();
-    expect(input.isDown(InputAction.Block)).toBe(true);
+    expect(input.isDown(InputAction.BlockHigh)).toBe(true);
     target.dispatchEvent(key('keyup', 'KeyQ'));
     input.poll();
-    expect(input.isDown(InputAction.Block)).toBe(false);
+    expect(input.isDown(InputAction.BlockHigh)).toBe(false);
   });
 });

@@ -1,4 +1,11 @@
-import { Fighter, PLACEHOLDER_FIGHTER, resolveSpacing, type FighterIntent, type SpacingRules } from '../fighters';
+import {
+  Fighter,
+  PLACEHOLDER_FIGHTER,
+  resolveSpacing,
+  type FighterIntent,
+  type PlanOptions,
+  type SpacingRules,
+} from '../fighters';
 import { PhysicsWorld, type Rapier } from '../physics';
 
 /** Debug stage: flat floor with walls at ±STAGE_HALF_WIDTH. Not an arena. */
@@ -49,13 +56,22 @@ export class SandboxSimulation {
     this.spacing = { minX: -wall, maxX: wall, maxSeparation: MAX_SEPARATION };
   }
 
-  step(dt: number, p1Intent: FighterIntent, p2Intent: FighterIntent): void {
+  /**
+   * One fixed step of movement. `plans` lets the combat layer (Phase 3) lock facing and add
+   * pushback per fighter; without it this is exactly the Phase 2 step.
+   */
+  step(
+    dt: number,
+    p1Intent: FighterIntent,
+    p2Intent: FighterIntent,
+    plans?: readonly [PlanOptions, PlanOptions],
+  ): void {
     const [p1, p2] = this.fighters;
     // Both fighters plan from the same start-of-step snapshot, so P1/P2 order does not matter.
     const p1Start = p1.x;
     const p2Start = p2.x;
-    p1.plan(dt, p1Intent, p2Start);
-    p2.plan(dt, p2Intent, p1Start);
+    p1.plan(dt, p1Intent, p2Start, plans?.[0]);
+    p2.plan(dt, p2Intent, p1Start, plans?.[1]);
 
     const [x1, x2] = resolveSpacing(p1.spacingBody(), p2.spacingBody(), this.spacing);
     p1.commit(x1);
@@ -64,6 +80,13 @@ export class SandboxSimulation {
     // stage the fighters query does not change.
     this.physics.step(dt);
     this.ticks++;
+  }
+
+  /** Put both fighters back at their spawn points (or the given X), facing each other. */
+  resetPositions(p1X = -SPAWN_SEPARATION / 2, p2X = SPAWN_SEPARATION / 2): void {
+    const [p1, p2] = this.fighters;
+    p1.reset(p1X, p2X >= p1X ? 1 : -1);
+    p2.reset(p2X, p1X > p2X ? 1 : -1);
   }
 
   dispose(): void {

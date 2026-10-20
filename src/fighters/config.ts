@@ -5,8 +5,8 @@
  * Three separate volumes, on purpose:
  * - environment collider (radius / halfHeight): Rapier capsule for floor and walls only;
  * - pushbox (pushHalfWidth / pushHeight): deterministic fighter-vs-fighter spacing;
- * - combat hit/hurt boxes: NOT defined here. Phase 3 adds them as separate per-move / per-posture
- *   data, independent of the Rapier collider (which, e.g., does not shrink when crouching).
+ * - combat hit/hurt boxes: NOT defined here. They are separate per-move / per-posture data in
+ *   src/combat/ (Phase 3), independent of the Rapier collider (which does not shrink when crouching).
  */
 export interface FighterBody {
   /** Environment capsule radius; also the distance the fighter keeps from stage walls. */

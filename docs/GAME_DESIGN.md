@@ -3,8 +3,9 @@
 Status legend: **Implemented** = exists in code and is tested · **Planned** = approved scope, not built ·
 **Future** = intended after the first playable release, details open.
 
-> As of Phase 2 only the engine foundation, Rapier physics, the fight camera and placeholder 2.5D
-> movement (walk, jump, crouch, facing, pushboxes) are implemented. Everything else here is planned.
+> As of Phase 3 the engine foundation, Rapier physics, the fight camera, placeholder 2.5D movement and
+> the **combat core** (frame-data attacks, blocking, stun, knockdown, health, rounds, timer, KO,
+> best of three) are implemented on placeholder capsules. Fighters, arenas, menus and modes are planned.
 
 ## Pitch
 
@@ -36,7 +37,7 @@ Character details live in [CHARACTER_BIBLE.md](CHARACTER_BIBLE.md).
 | Mode | Summary | Status |
 | --- | --- | --- |
 | Versus | Local 1v1 (player vs player or player vs CPU) | Planned — first mode to build |
-| Training | Free practice vs a configurable dummy, frame data display | Planned |
+| Training | Free practice vs a configurable dummy, frame data display | Planned — a debug version exists in the combat sandbox (dummy modes, hitbox overlay, frame-data readout) |
 | Arcade | Ladder of CPU fights ending in a boss | Planned |
 | Story | Narrative chapters with fights between scenes | Future |
 | Survival | Consecutive fights with limited health recovery | Future |
@@ -55,11 +56,18 @@ Character details live in [CHARACTER_BIBLE.md](CHARACTER_BIBLE.md).
 
 No arena geometry exists yet. The Phase 1 floor/grid is a debug scene only.
 
-## Core match rules (planned, subject to tuning)
+## Core match rules (subject to tuning)
 
-- Best of 3 rounds, round timer, KO or time-out decides a round.
-- Health bar plus a super/special meter.
+- **Implemented:** best of 3 rounds, 60 s round timer, KO or time-out decides a round (higher health
+  wins a time-out; draws award both fighters the round), 1000 health each.
+- **Planned:** super / special meter.
 - Detailed combat rules: [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md).
+
+## Controls (current keyboard layout, Phase 3)
+
+Left hand moves (WASD or arrows); right hand attacks on U I O L (light, heavy, kick, special) and
+blocks on the home row (J high, K low). Bindings are data in `src/engine/input/actions.ts`; a second
+local player and gamepad support are planned.
 
 ## Open design questions
 

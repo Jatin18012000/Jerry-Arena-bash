@@ -1,7 +1,9 @@
 # `src/ui/`
 
-**Status: planned — not implemented.** This folder is a reserved boundary created in Phase 1.
+**Status: placeholder match HUD implemented (Phase 3); menus planned (Phase 5).**
 
-Game menus and HUD: title, mode select, character select, health/super bars, options.
+- `MatchHud` — DOM health bars, round-win pips, timer and announcements ("ROUND n", "FIGHT!",
+  "K.O.", "TIME", winner). Writes to the DOM only when values change.
+- `bannerFor(match)` — pure: which announcement to show.
 
-See `docs/ARCHITECTURE.md` for the module map and phase plan.
+Planned: title, mode select, character select, pause, options, final HUD art and super meter.

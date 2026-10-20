@@ -1,7 +1,9 @@
 # `src/effects/`
 
-**Status: planned — not implemented.** This folder is a reserved boundary created in Phase 1.
+**Status: placeholder effects implemented (Phase 3).** Presentation only — never read by the simulation.
 
-Hit sparks, trails, screen shake, hit-stop and post-processing.
+- `HitSparks` — pooled impact flashes at hit / block points.
+- `ScreenShake` — deterministic, fixed-step camera shake.
 
-See `docs/ARCHITECTURE.md` for the module map and phase plan.
+Hit-stop is simulation, not an effect: see `CombatSimulation`. Planned: trails, particles,
+post-processing, camera punch-in on supers.

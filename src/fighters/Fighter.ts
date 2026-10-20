@@ -11,6 +11,14 @@ import {
 } from './motion';
 import type { SpacingBody } from './spacing';
 
+/** Per-step overrides the combat layer passes to `plan` (Phase 3). Both default to off. */
+export interface PlanOptions {
+  /** Keep the current facing (attacks, stun, knockdown): no auto-turn towards the opponent. */
+  readonly lockFacing?: boolean;
+  /** Extra horizontal displacement this step (pushback), applied with the walk delta. */
+  readonly pushX?: number;
+}
+
 export interface FighterOptions {
   id: string;
   config: FighterConfig;
@@ -42,7 +50,7 @@ const RIGHT: Vec3 = { x: 1, y: 0, z: 0 };
  *   that movement (environment collision);
  * - fighter-vs-fighter spacing is `spacing.ts`, never physics.
  * The fighter's environment shape (capsule radius / height) is not a pushbox and not a combat
- * hurtbox; Phase 3 hit/hurt boxes will be separate data driven by posture and animation.
+ * hurtbox; combat hit/hurt boxes are separate data in src/combat/ (per posture and per move).
  *
  * Contains no rendering or input code: intents are passed in each step.
  */
@@ -80,14 +88,35 @@ export class Fighter {
    * Step 1 of a fixed update: face the opponent, integrate motion for `intent`, then limit the
    * result against the stage. Leaves the result in `x`/`y` for spacing to adjust.
    */
-  plan(dt: number, intent: FighterIntent, opponentX: number): void {
+  plan(dt: number, intent: FighterIntent, opponentX: number, options: PlanOptions = {}): void {
     this.previousX = this.x;
     this.previousY = this.y;
-    const faced = faceOpponent(this.motion, this.x, opponentX);
+    const faced = options.lockFacing ? this.motion : faceOpponent(this.motion, this.x, opponentX);
     const step = stepMotion(faced, intent, this.config.motion, dt);
-    this.x = this.moveHorizontally(step.delta.x);
+    this.x = this.moveHorizontally(step.delta.x + (options.pushX ?? 0));
     const landed = this.moveVertically(step.delta.y);
     this.motion = settleMotion(step.state, landed);
+  }
+
+  /**
+   * Knock the fighter into the air (knockdown / KO). The arc is then integrated by the normal
+   * motion rules: `velocityX` is held like a committed jump until landing.
+   */
+  launch(velocityY: number, velocityX: number): void {
+    this.motion = { ...this.motion, grounded: false, posture: 'air', velocityY, airVelocityX: velocityX };
+  }
+
+  /** Freeze in place for a step (hit-stop): no movement, and render interpolation holds still. */
+  hold(): void {
+    this.previousX = this.x;
+    this.previousY = this.y;
+  }
+
+  /** Put the fighter back on the floor at `x`, standing, facing `facing` (round start). */
+  reset(x: number, facing: Side): void {
+    this.x = this.previousX = x;
+    this.y = this.previousY = 0;
+    this.motion = initialMotionState(facing);
   }
 
   /** Step 2: accept the spacing-corrected X. */

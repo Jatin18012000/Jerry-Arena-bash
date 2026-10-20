@@ -1,16 +1,4 @@
-import {
-  BoxGeometry,
-  CapsuleGeometry,
-  GridHelper,
-  Group,
-  MathUtils,
-  Mesh,
-  MeshStandardMaterial,
-  PlaneGeometry,
-  type BufferGeometry,
-  type Material,
-  type MeshStandardMaterialParameters,
-} from 'three';
+import { BoxGeometry, CapsuleGeometry, Group, MathUtils, Mesh, type BufferGeometry } from 'three';
 import type { EngineContext } from '../engine';
 import type { DebugInfoSource } from '../engine/debug/DebugHud';
 import type { GameState } from '../engine/state';
@@ -22,6 +10,7 @@ import {
   type FighterController,
 } from '../fighters';
 import type { Rapier } from '../physics';
+import { ResourceTracker, buildDebugStage } from './debugStage';
 import { SandboxSimulation, STAGE_HALF_WIDTH } from './SandboxSimulation';
 
 export const MOVEMENT_SANDBOX_STATE_ID = 'sandbox.movement';
@@ -55,30 +44,9 @@ export function createMovementSandboxState(
 ): GameState<EngineContext> & DebugInfoSource {
   const root = new Group();
   root.name = 'sandbox.movement';
-  const geometries: BufferGeometry[] = [];
-  const materials: Material[] = [];
-  const track = <G extends BufferGeometry>(g: G): G => (geometries.push(g), g);
-  const paint = (color: number, extra: MeshStandardMaterialParameters = {}): MeshStandardMaterial => {
-    const material = new MeshStandardMaterial({ color, roughness: 0.6, ...extra });
-    materials.push(material);
-    return material;
-  };
-
-  const floor = new Mesh(track(new PlaneGeometry(STAGE_HALF_WIDTH * 2 + 8, 12)), paint(0x1c1630, { roughness: 0.9 }));
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  const grid = new GridHelper(STAGE_HALF_WIDTH * 2 + 8, STAGE_HALF_WIDTH * 2 + 8, 0x7a4cff, 0x2e2450);
-  grid.position.y = 0.001;
-  root.add(floor, grid);
-
-  const wallGeometry = track(new BoxGeometry(0.1, 4, 3));
-  const wallMaterial = paint(0x7a4cff, { transparent: true, opacity: 0.35, emissive: 0x2a1060 });
-  for (const side of [-1, 1]) {
-    const wall = new Mesh(wallGeometry, wallMaterial);
-    wall.name = `sandbox.wall.${side < 0 ? 'left' : 'right'}`;
-    wall.position.set(side * (STAGE_HALF_WIDTH + 0.05), 2, 0);
-    root.add(wall);
-  }
+  const resources = new ResourceTracker();
+  const track = <G extends BufferGeometry>(g: G): G => resources.geometry(g);
+  const stage = buildDebugStage(root, resources);
 
   let simulation: SandboxSimulation | null = null;
   let controllers: readonly [FighterController, FighterController] | null = null;
@@ -95,11 +63,11 @@ export function createMovementSandboxState(
     const view = new Group();
     view.name = `sandbox.fighter.${fighter.id}`;
     const body = new Group();
-    const capsule = new Mesh(track(new CapsuleGeometry(radius, halfHeight * 2, 6, 16)), paint(color, { roughness: 0.45 }));
+    const capsule = new Mesh(track(new CapsuleGeometry(radius, halfHeight * 2, 6, 16)), resources.paint(color, { roughness: 0.45 }));
     capsule.position.y = fighter.height / 2;
     capsule.castShadow = true;
     // A "nose" so facing is readable on a symmetric capsule.
-    const nose = new Mesh(track(new BoxGeometry(0.22, 0.12, 0.16)), paint(0xf4f0ff));
+    const nose = new Mesh(track(new BoxGeometry(0.22, 0.12, 0.16)), resources.paint(0xf4f0ff));
     nose.position.set(radius, fighter.height * 0.78, 0);
     nose.castShadow = true;
     body.add(capsule, nose);
@@ -132,9 +100,8 @@ export function createMovementSandboxState(
       simulation?.dispose();
       simulation = null;
       controllers = null;
-      for (const g of geometries) g.dispose();
-      for (const m of materials) m.dispose();
-      grid.dispose();
+      resources.dispose();
+      stage.dispose();
     },
 
     update(dt, { camera }) {

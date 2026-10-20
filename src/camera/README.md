@@ -8,4 +8,5 @@ margin fit the horizontal field of view around that centre, follows jumps partia
 own configurable FOV (default 32°) to limit perspective lean. `update(dt, ...)` smooths in the fixed step; `apply(camera, alpha)`
 interpolates at render time. `frameFighters()` is the pure framing function.
 
-Planned later: intro / KO shots, camera punch-in on supers, screen shake (with `src/effects/`).
+Screen shake (Phase 3) is applied on top by the combat sandbox from `src/effects/ScreenShake`; the
+rig itself stays shake-free. Planned later: intro / KO shots, camera punch-in on supers.

@@ -13,4 +13,4 @@ export {
 } from './motion';
 export { resolveSpacing, type SpacingBody, type SpacingRules } from './spacing';
 export { IdleFighterController, KeyboardFighterController, type FighterController } from './controllers';
-export { Fighter, type FighterOptions } from './Fighter';
+export { Fighter, type FighterOptions, type PlanOptions } from './Fighter';

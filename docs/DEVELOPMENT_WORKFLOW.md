@@ -51,16 +51,24 @@ Target tools: **Blender 5.2.2 LTS** with the **Blender MCP Pro** add-on.
 
 ## Verifying the browser build
 
-`npm run dev`, open http://localhost:5173. Expected in Phase 2: the movement sandbox (HUD state
-`sandbox.movement`) with a pink P1 capsule and a cyan P2 capsule facing each other on a purple grid
-between two translucent walls, rising `sim steps`, and:
+`npm run dev`, open http://localhost:5173. Expected in Phase 3: the combat sandbox (HUD state
+`sandbox.combat`) with a pink P1 capsule and a cyan P2 dummy between two translucent walls, health
+bars, round pips and a 60 s timer at the top, and the debug HUD at the bottom left. Then:
 
-- A/D or ←/→ walk P1 (forward is faster than back); P1 stops at P2's pushbox and pushes P2 slowly.
-- W/↑ jumps (with a direction held: committed forward/back jump); a point-blank forward jump crosses
-  over P2 and both turn around on landing.
-- S/↓ crouches (capsule squashes, no walking).
-- Walking back stops at a 6.5 m gap or at the wall; the camera zooms out to keep both framed.
+- "ROUND 1" → "FIGHT!"; inputs are ignored until FIGHT.
+- Walk in and press **I** (heavy): sparks, a short freeze (hit-stop), a small screen shake, P2 slides
+  back, P2's bar drops by 90 and the HUD reads `last: P1 Heavy → HIT advantage +1 (data +1)`.
+- **L** (energy strike) launches P2; it lands, lies down, gets up.
+- **T** until the dummy says `blockHigh`: heavy is blocked (no damage, blue spark, `-5`), **O** (kick,
+  low) hits. In `blockLow` every move is blocked.
+- **T** until `attack`: hold **J** to block its lights (`P2 Light → BLOCK -1`).
+- **H** shows hurtboxes (green) and active hitboxes (red).
+- Knock P2 out (about 12 heavies): "K.O." → "P1 WINS", a round pip fills, round 2 starts at full health.
+  Two round wins end the match; **Enter** or **Esc** restarts.
 
-`?state=debug.foundation` still opens the Phase 1 scene (pink cube, WASD moves it). No console errors
-in either. Also check the production build with `npm run build && npm run preview`, which loads
-Rapier from its own lazily imported chunk.
+`?state=sandbox.movement` opens the Phase 2 movement sandbox and `?state=debug.foundation` the Phase 1
+scene. No console errors in any of them. Also check the production build with
+`npm run build && npm run preview`, which loads Rapier from its own lazily imported chunk.
+
+Headless note: in headless Chromium (software WebGL, ~20 fps) the game still runs in real time
+because the loop catches up in fixed steps; key taps shorter than one step (16 ms) merge into one press.

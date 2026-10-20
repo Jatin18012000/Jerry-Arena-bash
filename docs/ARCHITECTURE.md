@@ -12,15 +12,27 @@ index.html ─► src/main.ts ─► Engine
                               └── GameLoop        (fixed 60 Hz update + per-frame render)
 
 main.ts also awaits loadRapier() (lazy WASM chunk) before starting, then registers:
-  sandbox.movement  (default)  MovementSandboxState            ← presentation + devices
+  sandbox.combat    (default)  CombatSandboxState               ← presentation + devices (Phase 3)
+                                 ├── KeyboardCombatController     (P1: keys → FighterInput)
+                                 ├── TrainingDummyController      (P2: dummy modes → FighterInput)
+                                 ├── Match                        ← rounds, timer, KO / time-out, best of 3
+                                 │     └── CombatSimulation       ← deterministic combat step(dt, inputs)
+                                 │           ├── InputBuffer × 2  (8-frame attack buffer, combat frames)
+                                 │           ├── FighterCombatState × 2 (phase, frame, health, pushback)
+                                 │           ├── hit/hurt boxes, BLOCK_RULES, MoveSet (frame data)
+                                 │           └── SandboxSimulation  ← the Phase 2 movement step, reused
+                                 ├── FightCamera + ScreenShake    (presentation)
+                                 ├── HitSparks, hit/block flashes, hitbox overlay (presentation)
+                                 └── MatchHud (DOM)               (presentation)
+  sandbox.movement             MovementSandboxState             ← Phase 2 movement only
                                  ├── FighterController × 2      (keyboard P1, idle dummy P2 → intents)
-                                 ├── SandboxSimulation          ← deterministic gameplay step(dt, intents)
+                                 ├── SandboxSimulation          ← deterministic movement step(dt, intents)
                                  │     ├── PhysicsWorld         (Rapier: static floor + walls, ray queries)
                                  │     ├── Fighter × 2          (motion rules, limited by stage queries)
                                  │     └── resolveSpacing       (pushboxes, max separation, wall limits)
                                  ├── FightCamera                (reads fighters; never writes)
                                  └── placeholder capsule meshes
-  debug.foundation  (?state=debug.foundation) — Phase 1 runtime proof
+  debug.foundation             (?state=debug.foundation) — Phase 1 runtime proof
 ```
 
 Per animation frame:
@@ -44,13 +56,13 @@ Per animation frame:
 | `src/physics/` | Implemented | `loadRapier()` (dynamic import → own chunk, WASM embedded, offline, initialised once) and `PhysicsWorld` (static stage boxes, `castStageRay` environment queries, collision groups, `prime()`, `step(dt)`, `dispose()`). |
 | `src/fighters/` | Implemented (placeholder) | `PLACEHOLDER_FIGHTER` tuning (all values tunable placeholders), pure `stepMotion` / `settleMotion` / `faceOpponent`, pure `resolveSpacing`, `FighterController` → `FighterIntent` (keyboard, idle), `Fighter` runtime (exact float64 motion limited by Rapier stage queries). No real roster yet. |
 | `src/camera/` | Implemented | `FightCamera` (presentation only): side-on framing of both fighters, zoom by separation, partial jump follow, configurable FOV (default 32°), fixed-tick smoothing + render interpolation. |
-| `src/sandbox/` | Implemented (debug only) | `SandboxSimulation` (headless, deterministic, intents in) and `MovementSandboxState` (controllers, fight camera, placeholder capsule visuals; P2 is an idle dummy). Not an arena or game mode. |
-| `src/combat/` | Planned | See COMBAT_SYSTEM.md. |
+| `src/sandbox/` | Implemented (debug only) | `SandboxSimulation` (headless, deterministic movement step; Phase 3 adds optional per-fighter plan options and `resetPositions`), `MovementSandboxState`, `CombatSandboxState` (default; controllers, match, visuals, effects, HUD, training controls), shared `debugStage`. Not an arena or game mode. |
+| `src/combat/` | Implemented (placeholder moves) | Typed frame data + validation (`moves.ts`), hurtbox / match config, box geometry, `BLOCK_RULES`, `InputBuffer`, per-fighter combat phases (`FighterCombat.ts`), `CombatSimulation` (deterministic combat step around the movement step), `Match` (rounds, timer, KO, best of three), controllers (`KeyboardCombatController`, `TrainingDummyController`). See COMBAT_SYSTEM.md. |
 | `src/animation/` | Planned | GLTF animation mixer and frame sync. |
 | `src/ai/` | Planned | CPU opponents. |
-| `src/effects/` | Planned | VFX, hit-stop, screen shake. |
+| `src/effects/` | Implemented (placeholder) | `HitSparks` (pooled impact flashes) and `ScreenShake` (deterministic, fixed-step). Presentation only; hit-stop itself is simulation (`CombatSimulation`). |
 | `src/audio/` | Planned | Web Audio playback. |
-| `src/ui/` | Planned | Menus and match HUD. |
+| `src/ui/` | Implemented (placeholder HUD) / Planned (menus) | `MatchHud` (DOM health bars, round pips, timer, banners) and pure `bannerFor`. Menus, character select, options: Phase 5. |
 | `src/save/` | Planned | Offline persistence. |
 | `src/progression/`, `src/shop/`, `src/missions/`, `src/story/` | Future | Meta-game systems. |
 
@@ -73,15 +85,24 @@ Per animation frame:
     ticks of movement, drifted idle fighters and made P1/P2 asymmetric.)
   - *Fighter vs fighter*: `fighters/spacing.ts` pushboxes — never Rapier.
 - **Three different volumes.** Environment shape (capsule radius/height) ≠ pushbox (`pushHalfWidth`,
-  `pushHeight`) ≠ combat hit/hurt boxes. Hit/hurt boxes do not exist yet; Phase 3 adds them as
-  separate data and must not derive them from the environment shape (which, e.g., ignores crouch).
-- **Deterministic simulation.** `SandboxSimulation.step(dt, p1Intent, p2Intent)` depends only on its
-  inputs: no clocks, randomness, DOM, viewport or camera. Tests replay seeded 900-tick input
-  sequences tick-for-tick and prove identical results at 30/60/144 fps and jittery frame rates.
+  `pushHeight`) ≠ combat hit/hurt boxes. Hurtboxes are per posture (`combat/config.ts`) and hitboxes
+  per move (`combat/moves.ts`); neither is derived from the environment shape (which ignores crouch).
+- **Combat authority.** `CombatSimulation` owns combat state and decides hits from explicit box
+  overlap on integer combat frames. It does not replace the movement step: it wraps
+  `SandboxSimulation.step` and only filters intents, locks facing and adds pushback through the
+  additive `PlanOptions`. Rapier never decides a hit. One loop, one input manager, one update order
+  (documented in COMBAT_SYSTEM.md).
+- **Hit-stop is simulation, shake is presentation.** During hit-stop the combat step returns early
+  (no frames, timers, movement or round clock advance). Shake, sparks and flashes only read events.
+- **Deterministic simulation.** `SandboxSimulation.step(dt, p1Intent, p2Intent)` and
+  `CombatSimulation.step(dt, inputs)` depend only on their inputs: no clocks, randomness, DOM, viewport
+  or camera. Tests replay seeded input sequences (900 movement ticks, 3000 combat steps) step for step
+  and prove identical results at 30/60/144 fps and jittery frame rates.
   Scope: same build on the same platform; cross-platform bit-exactness (e.g. for netplay) is not
   claimed, since Rapier's standard build and JS `Math` are not guaranteed bit-identical everywhere.
 - **Controllers produce intents.** Keyboard, a future second human player and CPU AI all implement
-  `FighterController.readIntent()`; the simulation never reads devices.
+  `FighterController.readIntent()` (movement) or `CombatController.readInput()` (movement + attack
+  presses + guard); the simulation never reads devices.
 - **Camera is presentation.** It reads fighter positions and never writes simulation state; it is
   ticked at the fixed rate only so its smoothing is frame-rate independent.
 - **Fixed-step state, interpolated presentation.** Fighters and the fight camera keep previous and
@@ -102,7 +123,7 @@ verified by running the app in a browser (see DEVELOPMENT_WORKFLOW.md).
 | --- | --- | --- |
 | 1 — Foundation | Tooling, engine runtime, docs, tests | **Done** — web foundation plus local Blender project setup (see DEVELOPMENT_WORKFLOW.md) |
 | 2 — Movement & camera | Fight camera, Rapier integration, placeholder capsule fighters, basic movement | **Done** — reviewed and approved; see the movement sandbox |
-| 3 | Combat core (frame data, hit/hurt boxes, health, rounds) | Planned |
+| 3 — Combat core | Frame data, hit/hurt boxes, blocking, input buffer, stun, knockdown, health, rounds, timer, best of three, hit-stop, shake, training readout | **Done** — on placeholder capsules with generic test moves; see COMBAT_SYSTEM.md |
 | 4 | VERA and REX models/animations via Blender → GLB | Planned |
 | 5 | First arena, Versus + Training modes, menus | Planned |
 | Later | Arcade, AI, remaining arenas, Story, Survival, Shop, progression, remaining roster | Future |
