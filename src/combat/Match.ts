@@ -6,7 +6,7 @@ import type { FighterIndex, FighterInput } from './types';
 
 /**
  * - intro      "ROUND n" / "FIGHT": fighters reset, no control
- * - fight      control, round timer running
+ * - fight      control, round timer running (time-out: higher remaining health % wins)
  * - roundOver  KO or time-out: no control; fighters finish falling
  * - matchOver  a fighter (or both: draw) reached the round wins needed
  */
@@ -95,7 +95,11 @@ export class Match {
         this.timerFrames--;
         if (this.timerFrames <= 0) {
           this.timerFrames = 0;
-          this.endRound(h1 === h2 ? null : h1! > h2! ? 0 : 1, 'timeout');
+          // Fighters can have different max health: compare what fraction each has left.
+          const [max1, max2] = this.combat.maxHealth;
+          const r1 = h1! / max1;
+          const r2 = h2! / max2;
+          this.endRound(r1 === r2 ? null : r1 > r2 ? 0 : 1, 'timeout');
         }
         break;
       }

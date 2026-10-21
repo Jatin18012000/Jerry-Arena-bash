@@ -1,4 +1,4 @@
-import { NEUTRAL_INTENT, type Fighter, type FighterIntent, type PlanOptions } from '../fighters';
+import { NEUTRAL_INTENT, PLACEHOLDER_FIGHTER, type Fighter, type FighterConfig, type FighterIntent, type PlanOptions } from '../fighters';
 import type { Rapier } from '../physics';
 import { SandboxSimulation } from '../sandbox/SandboxSimulation';
 import { attackIsInFront, guardStops } from './blocking';
@@ -57,9 +57,19 @@ export function exchangeAdvantage(ex: Exchange): number | null {
   return ex.defenderReadyAt - ex.attackerReadyAt;
 }
 
+/** Per-fighter data a match needs (Phase 4: built from a `CharacterDefinition`). */
+export interface FighterSetup {
+  readonly config: FighterConfig;
+  readonly moves: MoveSet;
+  readonly maxHealth: number;
+}
+
 export interface CombatSimulationOptions {
+  /** Move set for both fighters when `fighters` is not given (Phase 3 behaviour). */
   moves?: MoveSet;
   config?: CombatConfig;
+  /** Per-fighter body, movement, moves and health (e.g. VERA vs REX). */
+  fighters?: readonly [FighterSetup, FighterSetup];
 }
 
 interface PendingHit {
@@ -97,7 +107,10 @@ const other = (i: FighterIndex): FighterIndex => (i === 0 ? 1 : 0);
  */
 export class CombatSimulation {
   readonly movement: SandboxSimulation;
-  readonly moves: MoveSet;
+  /** Each fighter's move set, in [P1, P2] order. */
+  readonly moveSets: readonly [MoveSet, MoveSet];
+  /** Each fighter's starting health, in [P1, P2] order. */
+  readonly maxHealth: readonly [number, number];
   readonly config: CombatConfig;
   readonly states: readonly [FighterCombatState, FighterCombatState];
   readonly buffers: readonly [InputBuffer, InputBuffer];
@@ -115,11 +128,18 @@ export class CombatSimulation {
   hitsEnabled = true;
 
   constructor(rapier: Rapier, options: CombatSimulationOptions = {}) {
-    this.moves = options.moves ?? DEFAULT_MOVES;
-    validateMoveSet(this.moves);
     this.config = options.config ?? DEFAULT_COMBAT_CONFIG;
-    this.movement = new SandboxSimulation(rapier);
-    this.states = [createCombatState(this.config.maxHealth), createCombatState(this.config.maxHealth)];
+    const shared: FighterSetup = {
+      config: PLACEHOLDER_FIGHTER,
+      moves: options.moves ?? DEFAULT_MOVES,
+      maxHealth: this.config.maxHealth,
+    };
+    const [a, b] = options.fighters ?? [shared, shared];
+    this.moveSets = [a.moves, b.moves];
+    for (const moves of this.moveSets) validateMoveSet(moves);
+    this.maxHealth = [a.maxHealth, b.maxHealth];
+    this.movement = new SandboxSimulation(rapier, [a.config, b.config]);
+    this.states = [createCombatState(a.maxHealth), createCombatState(b.maxHealth)];
     this.buffers = [new InputBuffer(this.config.inputBufferFrames), new InputBuffer(this.config.inputBufferFrames)];
   }
 
@@ -192,7 +212,7 @@ export class CombatSimulation {
   /** Start a fresh round: spawn positions (or the given X), full health, empty buffers. */
   resetRound(p1X?: number, p2X?: number): void {
     this.movement.resetPositions(p1X, p2X);
-    for (const s of this.states) Object.assign(s, createCombatState(this.config.maxHealth));
+    for (const i of INDICES) Object.assign(this.states[i], createCombatState(this.maxHealth[i]));
     this.clearBuffers();
     this.hitstop = 0;
     this.lastExchange = null;
@@ -219,7 +239,7 @@ export class CombatSimulation {
     }
     const button = this.buffers[i].take(this.frame);
     if (button) {
-      startAttack(s, this.moves[button]);
+      startAttack(s, this.moveSets[i][button]);
     } else if (input.guard) {
       if (s.phase !== 'guard') {
         s.phase = 'guard';

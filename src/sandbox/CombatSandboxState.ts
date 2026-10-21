@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   BoxGeometry,
   CapsuleGeometry,
   Color,
@@ -10,6 +11,7 @@ import {
   Mesh,
   type MeshStandardMaterial,
 } from 'three';
+import { FighterAnimator, selectPose, type CharacterModels, type FlashableMaterial } from '../animation';
 import { DEFAULT_FIGHT_CAMERA, FightCamera, type FightCameraConfig } from '../camera';
 import {
   KeyboardCombatController,
@@ -21,6 +23,7 @@ import {
   moveStageAt,
   type Box,
   type FighterIndex,
+  type FighterSetup,
   type MatchConfig,
   type MoveDefinition,
 } from '../combat';
@@ -30,6 +33,7 @@ import type { DebugInfoSource } from '../engine/debug/DebugHud';
 import { InputAction } from '../engine/input';
 import type { GameState } from '../engine/state';
 import type { Fighter } from '../fighters';
+import { DEFAULT_MATCHUP, type CharacterDefinition } from '../fighters/characters';
 import type { Rapier } from '../physics';
 import { MatchHud, bannerFor } from '../ui';
 import { ResourceTracker, buildDebugStage } from './debugStage';
@@ -39,10 +43,8 @@ export const COMBAT_SANDBOX_STATE_ID = 'sandbox.combat';
 
 const CROUCH_SCALE = 0.62;
 const CAMERA_WALL_INSET = 2.5;
-const FIGHTER_COLORS: readonly [number, number] = [0xff3d81, 0x3dd6ff];
 const HIT_FLASH = new Color(0xffffff);
 const BLOCK_FLASH = new Color(0x4aa8ff);
-const NO_FLASH = new Color(0x000000);
 const SPECIAL_GLOW = 0xffe066;
 
 export interface CombatSandboxOptions {
@@ -50,14 +52,23 @@ export interface CombatSandboxOptions {
   match?: MatchConfig;
   /** Element for the DOM match HUD. Omit to run without one (headless tests). */
   hudParent?: HTMLElement;
+  /** Who fights: [P1, P2]. Defaults to VERA vs REX. */
+  roster?: readonly [CharacterDefinition, CharacterDefinition];
+  /** Loaded GLB models. Without them (or for a missing id) fighters fall back to capsules. */
+  models?: CharacterModels;
 }
 
 interface FighterView {
   readonly index: FighterIndex;
   readonly fighter: Fighter;
   readonly root: Group;
-  readonly body: Group;
-  readonly material: MeshStandardMaterial;
+  /** Capsule body (fallback only). */
+  readonly body: Group | null;
+  /** Animated GLB (Phase 4) — null when falling back to the capsule. */
+  readonly animator: FighterAnimator | null;
+  /** Materials tinted by hit / block flashes (the capsule's, or the model's own copies). */
+  readonly flashables: readonly FlashableMaterial[];
+  /** Capsule: attack bar. Model: energy glow shown only during the special's active frames. */
   readonly limb: Mesh;
   readonly limbMaterial: MeshStandardMaterial;
   flash: number;
@@ -73,9 +84,10 @@ interface BoxView {
 const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
 
 /**
- * Phase 3 combat sandbox (the default screen): P1 on the keyboard against a training dummy, on
- * the flat debug stage, with a best-of-three match, HUD, hit sparks, screen shake, hitbox
- * overlay and frame-data readout. Placeholder capsules — not final fighters, arena or menus.
+ * Combat sandbox (the default screen): P1 on the keyboard against a training dummy, on the flat
+ * debug stage, with a best-of-three match, HUD, hit sparks, screen shake, hitbox overlay and
+ * frame-data readout. Phase 4: fighters are characters from the roster (VERA, REX) drawn with
+ * their animated GLB models; capsules remain as a fallback when models are not supplied.
  *
  * Presentation only: everything that decides the fight is in `Match` / `CombatSimulation`,
  * which this state drives with controller inputs and reads back for display.
@@ -84,6 +96,7 @@ export function createCombatSandboxState(
   rapier: Rapier,
   options: CombatSandboxOptions = {},
 ): GameState<EngineContext> & DebugInfoSource {
+  const roster = options.roster ?? DEFAULT_MATCHUP;
   const root = new Group();
   root.name = 'sandbox.combat';
   const resources = new ResourceTracker();
@@ -119,26 +132,45 @@ export function createCombatSandboxState(
   });
 
   const buildView = (index: FighterIndex, fighter: Fighter): FighterView => {
+    const character = roster[index];
     const { radius, halfHeight } = fighter.config.body;
     const view = new Group();
     view.name = `sandbox.fighter.${fighter.id}`;
+    const limbMaterial = resources.paint(0xf4f0ff, { emissive: 0x000000 });
+    const limb = new Mesh(resources.geometry(new BoxGeometry(1, 0.14, 0.14)), limbMaterial);
+    limb.name = `sandbox.fighter.${fighter.id}.limb`;
+    limb.visible = false;
+    view.add(limb);
+    root.add(view);
+    const base = { index, fighter, root: view, limb, limbMaterial, flash: 0, flashColor: HIT_FLASH };
+
+    if (options.models?.has(character.id)) {
+      const instance = options.models.instantiate(character.id);
+      instance.root.name = `sandbox.fighter.${fighter.id}.model`;
+      view.add(instance.root);
+      // With a model the bar is only the special's energy streak: thin, additive, character-coloured.
+      limbMaterial.color.setHex(character.color);
+      limbMaterial.emissive.setHex(character.color);
+      limbMaterial.transparent = true;
+      limbMaterial.opacity = 0.5;
+      limbMaterial.blending = AdditiveBlending;
+      limbMaterial.depthWrite = false;
+      return { ...base, body: null, animator: new FighterAnimator(instance.root, instance.clips), flashables: instance.materials };
+    }
+
+    // Fallback: Phase 3 capsule in the character's colour.
     const body = new Group();
-    const material = resources.paint(FIGHTER_COLORS[index], { roughness: 0.45 });
+    const material = resources.paint(character.color, { roughness: 0.45 });
     const capsule = new Mesh(resources.geometry(new CapsuleGeometry(radius, halfHeight * 2, 6, 16)), material);
     capsule.position.y = fighter.height / 2;
     capsule.castShadow = true;
     const nose = new Mesh(resources.geometry(new BoxGeometry(0.22, 0.12, 0.16)), resources.paint(0xf4f0ff));
     nose.position.set(radius, fighter.height * 0.78, 0);
-    // The "limb": a bar that extends towards the hitbox during an attack (visual cue only).
-    const limbMaterial = resources.paint(0xf4f0ff, { emissive: 0x000000 });
-    const limb = new Mesh(resources.geometry(new BoxGeometry(1, 0.14, 0.14)), limbMaterial);
-    limb.name = `sandbox.fighter.${fighter.id}.limb`;
-    limb.visible = false;
     limb.castShadow = true;
     body.add(capsule, nose);
-    view.add(body, limb);
-    root.add(view);
-    return { index, fighter, root: view, body, material, limb, limbMaterial, flash: 0, flashColor: HIT_FLASH };
+    view.add(body);
+    const flashable: FlashableMaterial = { material, baseEmissive: material.emissive.clone(), baseIntensity: material.emissiveIntensity };
+    return { ...base, body, animator: null, flashables: [flashable] };
   };
 
   const placeBox = (view: BoxView, box: Box | null, depth = view.depth): void => {
@@ -169,7 +201,9 @@ export function createCombatSandboxState(
     id: COMBAT_SANDBOX_STATE_ID,
 
     enter({ scene, camera, input }) {
-      match = new Match(rapier, options.match ? { match: options.match } : {});
+      const setup = (c: CharacterDefinition): FighterSetup => ({ config: c.fighter, moves: c.moves, maxHealth: c.maxHealth });
+      const fighters: [FighterSetup, FighterSetup] = [setup(roster[0]), setup(roster[1])];
+      match = new Match(rapier, { fighters, ...(options.match ? { match: options.match } : {}) });
       player = new KeyboardCombatController(input);
       views = match.combat.fighters.map((f, i) => buildView(i as FighterIndex, f));
       const [p1, p2] = match.combat.fighters;
@@ -185,7 +219,10 @@ export function createCombatSandboxState(
         camera.fov = previousFov;
         camera.updateProjectionMatrix();
       }
-      for (const view of views) root.remove(view.root);
+      for (const view of views) {
+        view.animator?.dispose();
+        root.remove(view.root);
+      }
       views = [];
       hud?.dispose();
       hud = null;
@@ -227,7 +264,18 @@ export function createCombatSandboxState(
       }
 
       // Presentation ticks at the fixed rate so it looks the same at any FPS.
-      for (const view of views) if (view.flash > 0) view.flash--;
+      const celebrating = (match.phase === 'roundOver' && match.phaseFrame > 60) || match.phase === 'matchOver';
+      const roundWinner = match.phase === 'matchOver' ? match.winner : match.lastResult?.winner;
+      for (const view of views) {
+        if (view.flash > 0) view.flash--;
+        if (view.animator) {
+          const pose = selectPose(match.combat.states[view.index], view.fighter.motion, {
+            stepsPerSecond: match.config.stepsPerSecond,
+            victory: celebrating && roundWinner === view.index,
+          });
+          view.animator.apply(pose, dt);
+        }
+      }
       sparks.update();
       shake.update();
       const [p1, p2] = match.combat.fighters;
@@ -247,29 +295,45 @@ export function createCombatSandboxState(
         );
         node.rotation.y = fighter.motion.facing === 1 ? 0 : Math.PI;
 
-        // Body pose: crouch squash, or tipping over for launch / knockdown / getup / KO.
-        let tilt = 0;
-        if (state.phase === 'launched') tilt = Math.min(Math.PI / 2, state.frame * 0.09);
-        else if (state.phase === 'knockdown') tilt = Math.PI / 2;
-        else if (state.phase === 'getup') tilt = (Math.PI / 2) * (1 - state.frame / state.duration);
-        else if (state.phase === 'ko') tilt = fighter.motion.grounded ? Math.PI / 2 : Math.min(Math.PI / 2, state.frame * 0.09);
-        body.rotation.z = tilt;
-        body.position.y = (fighter.config.body.radius * tilt) / (Math.PI / 2);
-        body.scale.y = tilt === 0 && fighter.motion.posture === 'crouch' ? CROUCH_SCALE : 1;
-
-        // Attack limb.
-        const move = state.phase === 'attack' ? state.move : null;
-        limb.visible = move !== null;
-        if (move) {
-          const { near, far, bottom, top } = move.hitbox;
-          const length = Math.max(0.05, (far - near) * limbExtent(move, state.frame));
-          limb.scale.set(length, move.id === 'special' ? 2.4 : 1, move.id === 'special' ? 2.4 : 1);
-          limb.position.set(near + length / 2, (bottom + top) / 2, 0);
-          view.limbMaterial.emissive.setHex(move.id === 'special' && moveStageAt(move, state.frame) === 'active' ? SPECIAL_GLOW : 0x000000);
+        if (body) {
+          // Capsule fallback: crouch squash, or tipping over for launch / knockdown / getup / KO.
+          let tilt = 0;
+          if (state.phase === 'launched') tilt = Math.min(Math.PI / 2, state.frame * 0.09);
+          else if (state.phase === 'knockdown') tilt = Math.PI / 2;
+          else if (state.phase === 'getup') tilt = (Math.PI / 2) * (1 - state.frame / state.duration);
+          else if (state.phase === 'ko') tilt = fighter.motion.grounded ? Math.PI / 2 : Math.min(Math.PI / 2, state.frame * 0.09);
+          body.rotation.z = tilt;
+          body.position.y = (fighter.config.body.radius * tilt) / (Math.PI / 2);
+          body.scale.y = tilt === 0 && fighter.motion.posture === 'crouch' ? CROUCH_SCALE : 1;
         }
 
-        view.material.emissive.copy(view.flash > 0 ? view.flashColor : NO_FLASH);
-        view.material.emissiveIntensity = view.flash > 0 ? 0.35 + 0.08 * view.flash : 0;
+        // Attack bar (capsules) or special energy glow (models).
+        const move = state.phase === 'attack' ? state.move : null;
+        const active = move !== null && moveStageAt(move, state.frame) === 'active';
+        const showLimb = move !== null && (body !== null || (move.button === 'special' && active));
+        limb.visible = showLimb;
+        if (move && showLimb) {
+          const { near, far, bottom, top } = move.hitbox;
+          const extent = body ? limbExtent(move, state.frame) : 1;
+          const length = Math.max(0.05, (far - near) * extent);
+          const special = move.button === 'special';
+          const thickness = body ? (special ? 2.4 : 1) : 0.7;
+          limb.scale.set(length, thickness, thickness);
+          limb.position.set(near + length / 2, (bottom + top) / 2, 0);
+          if (body) view.limbMaterial.emissive.setHex(special && active ? SPECIAL_GLOW : 0x000000);
+          view.limbMaterial.emissiveIntensity = special && active ? 1.5 : 1;
+        }
+
+        for (const f of view.flashables) {
+          if (view.flash > 0) {
+            f.material.emissive.copy(view.flashColor);
+            // Capsules are flat colour and need a strong flash; lit models only a tint.
+            f.material.emissiveIntensity = body ? 0.35 + 0.08 * view.flash : 0.03 * view.flash;
+          } else {
+            f.material.emissive.copy(f.baseEmissive);
+            f.material.emissiveIntensity = f.baseIntensity;
+          }
+        }
       }
 
       if (overlay.visible) {
@@ -287,13 +351,13 @@ export function createCombatSandboxState(
 
       hud?.update({
         health: [combat.states[0].health, combat.states[1].health],
-        maxHealth: combat.config.maxHealth,
+        maxHealth: combat.maxHealth,
         wins: match.wins,
         roundsToWin: match.config.roundsToWin,
         seconds: match.secondsLeft,
         banner: bannerFor(match),
         subBanner: match.phase === 'matchOver' ? 'Press Enter to play again' : null,
-        names: ['P1', `P2 · dummy: ${dummy.mode}`],
+        names: [`P1 · ${roster[0].name}`, `P2 · ${roster[1].name} (dummy: ${dummy.mode})`],
       });
     },
 
@@ -316,14 +380,14 @@ export function createCombatSandboxState(
         else if (s.phase === 'guard') detail = s.guardLevel;
         const buffered = combat.buffers[i].peek().map((e) => e.button).join(',');
         lines.push(
-          `${f.id}  hp ${String(s.health).padStart(4)}  ${s.phase.padEnd(9)} ${detail.padEnd(24)} x ${f.x.toFixed(2).padStart(6)}  ${f.motion.posture.padEnd(11)}${buffered ? ` buf[${buffered}]` : ''}`,
+          `${f.id} ${roster[i].name.padEnd(5)} hp ${String(s.health).padStart(4)}  ${s.phase.padEnd(9)} ${detail.padEnd(28)} x ${f.x.toFixed(2).padStart(6)}  ${f.motion.posture.padEnd(11)}${buffered ? ` buf[${buffered}]` : ''}`,
         );
       }
-      lines.push('frame data     S/A/R      dmg  level  on hit  on block');
-      for (const move of Object.values(combat.moves)) {
+      lines.push(`${roster[0].name} frame data   S/A/R      dmg  level  on hit  on block`);
+      for (const move of Object.values(combat.moveSets[0])) {
         const onHit = advantageOnHit(move);
         lines.push(
-          `${move.name.padEnd(15)}${`${move.startupFrames}/${move.activeFrames}/${move.recoveryFrames}`.padEnd(11)}${String(move.damage).padEnd(5)}${move.hitLevel.padEnd(7)}${(onHit === null ? 'KD' : signed(onHit)).padEnd(8)}${signed(advantageOnBlock(move))}`,
+          `${move.name.padEnd(17)}${`${move.startupFrames}/${move.activeFrames}/${move.recoveryFrames}`.padEnd(11)}${String(move.damage).padEnd(5)}${move.hitLevel.padEnd(7)}${(onHit === null ? 'KD' : signed(onHit)).padEnd(8)}${signed(advantageOnBlock(move))}`,
         );
       }
       const ex = combat.lastExchange;

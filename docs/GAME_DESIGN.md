@@ -3,9 +3,9 @@
 Status legend: **Implemented** = exists in code and is tested · **Planned** = approved scope, not built ·
 **Future** = intended after the first playable release, details open.
 
-> As of Phase 3 the engine foundation, Rapier physics, the fight camera, placeholder 2.5D movement and
-> the **combat core** (frame-data attacks, blocking, stun, knockdown, health, rounds, timer, KO,
-> best of three) are implemented on placeholder capsules. Fighters, arenas, menus and modes are planned.
+> As of Phase 4 the engine, Rapier physics, fight camera, 2.5D movement, the **combat core** and the
+> first two fighters, **VERA and REX** (models, rigs, animations, move sets), are implemented and
+> playable in the combat sandbox. Arenas, menus and game modes are planned.
 
 ## Pitch
 
@@ -23,8 +23,8 @@ server or API key. Two fighters on a 3D stage, side-on fight camera, readable fr
 
 | Fighter | Status |
 | --- | --- |
-| VERA | Planned — first playable fighter |
-| REX | Planned — first playable fighter |
+| VERA | **Implemented (Phase 4)** — agile kickboxer |
+| REX | **Implemented (Phase 4)** — power striker |
 | TITAN | Future |
 | NOVA | Future |
 | KAI | Future |
@@ -59,7 +59,8 @@ No arena geometry exists yet. The Phase 1 floor/grid is a debug scene only.
 ## Core match rules (subject to tuning)
 
 - **Implemented:** best of 3 rounds, 60 s round timer, KO or time-out decides a round (higher health
-  wins a time-out; draws award both fighters the round), 1000 health each.
+  wins a time-out by remaining health percentage; draws award both fighters the round); health per
+  character (VERA 950, REX 1050).
 - **Planned:** super / special meter.
 - Detailed combat rules: [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md).
 

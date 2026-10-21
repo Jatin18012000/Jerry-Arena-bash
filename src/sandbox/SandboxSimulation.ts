@@ -2,6 +2,7 @@ import {
   Fighter,
   PLACEHOLDER_FIGHTER,
   resolveSpacing,
+  type FighterConfig,
   type FighterIntent,
   type PlanOptions,
   type SpacingRules,
@@ -32,7 +33,11 @@ export class SandboxSimulation {
   /** Fixed steps simulated so far. */
   ticks = 0;
 
-  constructor(rapier: Rapier) {
+  /**
+   * `configs` sets each fighter's body and movement (Phase 4 characters); both default to the
+   * Phase 2 placeholder. Wall limits use the wider of the two body radii.
+   */
+  constructor(rapier: Rapier, configs: readonly [FighterConfig, FighterConfig] = [PLACEHOLDER_FIGHTER, PLACEHOLDER_FIGHTER]) {
     this.physics = new PhysicsWorld(rapier);
     this.physics.addStaticBox(
       { x: 0, y: -0.5, z: 0 },
@@ -45,14 +50,14 @@ export class SandboxSimulation {
       );
     }
 
-    const config = PLACEHOLDER_FIGHTER;
     this.fighters = [
-      new Fighter(this.physics, { id: 'P1', config, spawnX: -SPAWN_SEPARATION / 2, facing: 1 }),
-      new Fighter(this.physics, { id: 'P2', config, spawnX: SPAWN_SEPARATION / 2, facing: -1 }),
+      new Fighter(this.physics, { id: 'P1', config: configs[0], spawnX: -SPAWN_SEPARATION / 2, facing: 1 }),
+      new Fighter(this.physics, { id: 'P2', config: configs[1], spawnX: SPAWN_SEPARATION / 2, facing: -1 }),
     ];
     this.physics.prime(); // stage colliders must be in the broad phase before the first query
 
-    const wall = Fighter.wallLimit(STAGE_HALF_WIDTH, config);
+    const widest = configs[0].body.radius >= configs[1].body.radius ? configs[0] : configs[1];
+    const wall = Fighter.wallLimit(STAGE_HALF_WIDTH, widest);
     this.spacing = { minX: -wall, maxX: wall, maxSeparation: MAX_SEPARATION };
   }
 

@@ -2,13 +2,14 @@
 
 A browser-based, offline-first **3D 1v1 fighting game** built with TypeScript, Three.js and Vite.
 
-> **Current status: Phase 3 — Combat Core: DONE.** Next: Phase 4 — VERA & REX.
-> On top of the engine, Rapier physics, fight camera and 2.5D movement (Phases 1–2), two
-> **placeholder capsule fighters** now fight a deterministic, frame-data-driven best-of-three match:
-> attacks, hit/hurt boxes, high/low blocking, input buffer, stun, knockdown, rounds, timer and KO.
-> **No real fighters (VERA, REX, ...), arenas, menus or game modes are implemented yet**, and the four
-> moves are generic test moves. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for exactly what
-> exists and what is planned, and [`docs/COMBAT_SYSTEM.md`](docs/COMBAT_SYSTEM.md) for the rules.
+> **Current status: Phase 4 — VERA & REX: DONE.** Next: Phase 5 — first arena, Versus / Training
+> modes and menus.
+> **VERA** (agile kickboxer) and **REX** (power striker) — stylised 3D models built in Blender, rigged,
+> animated and exported as GLB — fight a deterministic, frame-data-driven best-of-three match with
+> their own move sets, health and speed (Phases 1–3: engine, physics, camera, movement, combat).
+> **No arenas, menus or game modes are implemented yet** (the stage is a debug floor).
+> See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/COMBAT_SYSTEM.md`](docs/COMBAT_SYSTEM.md)
+> and [`docs/CHARACTER_BIBLE.md`](docs/CHARACTER_BIBLE.md).
 
 ## Tech stack
 
@@ -19,7 +20,7 @@ A browser-based, offline-first **3D 1v1 fighting game** built with TypeScript, T
 | Build / dev server | Vite | In use |
 | Tests | Vitest (+ jsdom for DOM tests) | In use |
 | Physics | Rapier (`@dimforge/rapier3d-compat`) | In use: static stage colliders (floor, walls) queried for environment collision |
-| 3D assets | GLTF/GLB authored in Blender 5.2.2 LTS (via Blender MCP Pro) | Pipeline planned |
+| 3D assets | GLB built in Blender by script (`blender/scripts/build_characters.py`) | In use: VERA, REX |
 | Backend | None — fully offline, no runtime API keys, no paid runtime services | By design |
 
 ## Getting started
@@ -35,9 +36,13 @@ npm run build      # typecheck + production build into dist/
 npm run preview    # serve the production build locally
 ```
 
-The page opens the **combat sandbox**: P1 (pink capsule, keyboard) against P2 (cyan capsule, a
-training dummy) on a flat debug stage, in a best-of-three match with health bars, timer and round
-announcements.
+Rebuilding the character models (only needed after editing `blender/scripts/`):
+`blender -b --factory-startup -P blender/scripts/build_characters.py -- --render`
+(see [Character pipeline](docs/DEVELOPMENT_WORKFLOW.md#character-pipeline)).
+
+The page opens the **combat sandbox**: **VERA** (P1, keyboard) against **REX** (P2, a training
+dummy) on a flat debug stage, in a best-of-three match with health bars, timer and round
+announcements. `?p1=rex&p2=vera` swaps them (mirror matches work too).
 
 | Key | Action |
 | --- | --- |
@@ -52,7 +57,7 @@ announcements.
 
 The debug HUD (bottom left) shows each fighter's combat phase and frame, the frame-data table and the
 measured advantage of the last hit or block. Everything is deterministic (same inputs → same result at
-any frame rate); all values are tunable placeholders and these capsules are not game content.
+any frame rate); all values are tunable.
 `?state=sandbox.movement` opens the Phase 2 movement-only sandbox and `?state=debug.foundation` the
 Phase 1 runtime-proof scene.
 
@@ -68,9 +73,11 @@ src/
   effects/       Implemented (placeholder): hit sparks, screen shake
   ui/            Implemented (placeholder): match HUD (health, timer, round pips, banners)
   sandbox/       Implemented (debug): combat sandbox (default) and Phase 2 movement sandbox
-  ai/ animation/ audio/ story/ missions/ shop/ progression/ save/      Planned (reserved folders)
-assets/          Runtime assets (GLB, textures, audio, UI) — empty for now
-blender/         Source .blend files — see docs/DEVELOPMENT_WORKFLOW.md
+  animation/     Implemented: clip contract, pose selection, animator, GLB loading
+  fighters/characters/  Implemented: VERA and REX definitions (moves, health, movement)
+  ai/ audio/ story/ missions/ shop/ progression/ save/      Planned (reserved folders)
+assets/          Runtime assets: characters/vera.glb, rex.glb (generated)
+blender/         scripts/ (character builder), characters/*.blend (generated), BRAIN_ROT_LEGENDS.blend
 tests/           Vitest unit tests
 docs/            Design and architecture documents
 ```

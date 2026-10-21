@@ -5,7 +5,14 @@ export * from './boxes';
 export * from './blocking';
 export { InputBuffer } from './InputBuffer';
 export * from './FighterCombat';
-export { CombatSimulation, exchangeAdvantage, type CombatEvent, type CombatSimulationOptions, type Exchange } from './CombatSimulation';
+export {
+  CombatSimulation,
+  exchangeAdvantage,
+  type CombatEvent,
+  type CombatSimulationOptions,
+  type Exchange,
+  type FighterSetup,
+} from './CombatSimulation';
 export {
   Match,
   type MatchEvent,

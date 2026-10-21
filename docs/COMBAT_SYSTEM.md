@@ -6,8 +6,9 @@ Status legend: **Implemented** = in code and tested · **Planned** = approved, n
 > Frame-data attacks, hit/hurt boxes, high/low blocking, an 8-frame input buffer, hitstun /
 > blockstun, pushback, knockdown and get-up, health, rounds, timer, KO / time-out, best of three,
 > hit-stop, screen shake, and a training frame-data readout all work in the combat sandbox.
-> The four moves are **generic system-test moves**, not VERA's or REX's move lists. All numbers are
-> tunable placeholders.
+> Phase 4: the match is fought by **characters** — VERA and REX each bring their own move set,
+> health and movement (see [Characters](#characters-phase-4)). The generic Phase 3 moves below
+> remain the default for headless tests and the capsule fallback. All numbers are tunable.
 
 Code: `src/combat/` (simulation, pure and headless) · presentation in `src/sandbox/CombatSandboxState.ts`,
 `src/effects/`, `src/ui/`. Tests: `tests/combat-*.test.ts`.
@@ -59,7 +60,7 @@ non-integer or negative frame counts, zero active frames, negative / non-finite 
 unknown hit levels or reactions, stagger moves without hitstun, inverted / zero-depth / behind-the-
 fighter hitboxes, duplicate ids and moves registered under the wrong button.
 
-### Placeholder move set
+### Generic move set (Phase 3 default; tests and capsule fallback)
 
 | Move (button) | S / A / R | Dmg | Level | Hitstun | Blockstun | On hit | On block | Hit-stop | Pushback hit / block | Role |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -159,7 +160,8 @@ crouching posture if hit crouching) · `blockstun` · `launched` · `knockdown` 
 (frames; frozen during hit-stop), 1.5 s intro ("ROUND n" → "FIGHT!"), 2.5 s round-over pause.
 
 - KO: the other fighter wins the round. Double KO: draw.
-- Time-out: higher health wins; equal health is a draw.
+- Time-out: higher **remaining health percentage** wins (fighters can have different max health);
+  equal is a draw.
 - A draw gives **both** fighters the round; if both reach 2 wins together the match is a draw.
 - Match over: **Enter** (or **Esc** at any time) restarts the match.
 
@@ -173,12 +175,32 @@ In the combat sandbox (default page):
   hit-stop, the frame-data table, and the **measured** advantage of the last exchange next to the value
   the frame data predicts.
 
+## Characters (Phase 4)
+
+Each fighter's `CharacterDefinition` (`src/fighters/characters/`) supplies its move set, max health
+and walk / jump speeds to `CombatSimulation` via per-fighter `FighterSetup`s. Same buttons, same
+rules, different numbers. Full tables and design notes: [CHARACTER_BIBLE.md](CHARACTER_BIBLE.md).
+
+| | VERA (agile kickboxer) | REX (power striker) |
+| --- | --- | --- |
+| Health | 950 | 1050 |
+| Walk fwd / back | 2.8 / 2.1 m/s | 2.2 / 1.6 m/s |
+| U light | Viper Jab 4/2/10, 35, +3 / −1 | Circuit Jab 5/3/11, 45, +3 / −1 |
+| I heavy | Spiral Knee 9/3/17, 80, +1 / −4 (short) | Dragon Hook 11/4/19, 100, +1 / −6 (big push) |
+| O kick (low) | Low Sweep 7/4/14, 60, +1 / −4 (1.35 m) | Shin Breaker 9/4/16, 70, +1 / −4 |
+| L special | Violet Crescent 13/5/23, 115, KD / −10 | Overdrive Fist 15/6/24, 130, KD / −10 (1.8 m) |
+
+Animation sync: each attack clip lasts exactly S + A + R frames and is pinned to the combat frame
+(`src/animation/selectPose.ts`); tests check the GLB clip lengths and the Blender `TIMING` tables
+against this data.
+
 ## Planned (next phases)
 
 - Overheads and a reason to stand-block; chip damage (optional); throws and throw techs.
 - Crouching and air normals; cancels / combo routes; damage scaling; juggles; wake-up options.
 - Super / special meter and motion-input specials (the buffer is ready for sequences).
-- Character-specific move lists, hitboxes driven by animation (Phase 4, with VERA and REX).
+- Per-character hurtboxes (both fighters currently share the same hurtbox sizes); hitbox shapes
+  authored alongside the animations.
 - Second local player and CPU AI (controllers already produce `FighterInput`).
 
 ## Future

@@ -29,7 +29,7 @@ export function bannerFor(match: Pick<Match, 'phase' | 'phaseFrame' | 'round' | 
 
 export interface MatchHudView {
   readonly health: readonly [number, number];
-  readonly maxHealth: number;
+  readonly maxHealth: readonly [number, number];
   readonly wins: readonly [number, number];
   readonly roundsToWin: number;
   readonly seconds: number;
@@ -89,7 +89,7 @@ export class MatchHud {
     if (key === this.last) return;
     this.last = key;
     for (const i of [0, 1] as const) {
-      const ratio = Math.max(0, Math.min(1, view.health[i] / view.maxHealth));
+      const ratio = Math.max(0, Math.min(1, view.health[i] / view.maxHealth[i]));
       this.fills[i].style.width = `${(ratio * 100).toFixed(2)}%`;
       this.fills[i].dataset.health = String(view.health[i]);
       this.names[i].textContent = view.names[i];

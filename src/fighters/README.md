@@ -1,6 +1,6 @@
 # `src/fighters/`
 
-**Status: placeholder movement implemented (Phase 2).** No real fighter (VERA, REX, ...) exists yet.
+**Status: movement implemented (Phase 2); VERA and REX implemented as characters (Phase 4).**
 
 - `config.ts` — `PLACEHOLDER_FIGHTER` body and movement tuning (metres, seconds).
 - `motion.ts` — pure, deterministic per-step movement: walk forward/back relative to facing,
@@ -14,4 +14,9 @@ The environment shape (`radius`, `halfHeight`) is not a pushbox and not a combat
 hit/hurt boxes are separate data in `src/combat/`. All tuning values are placeholders. Intents come from a
 `FighterController` (keyboard now; a second human player or CPU later), never from devices directly.
 
-Real fighter data, move lists and GLB models arrive in later phases (see `docs/ARCHITECTURE.md`).
+
+## Characters (Phase 4)
+
+`characters/` holds the roster as pure data: `VERA` and `REX` (`CharacterDefinition`: name,
+archetype, body / movement config, health, move set), `ROSTER`, `DEFAULT_MATCHUP`,
+`validateCharacter`, and `models.ts` with the bundled GLB URLs. See `docs/CHARACTER_BIBLE.md`.

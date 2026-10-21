@@ -29,3 +29,7 @@ Thumbs.db
 # Temporary files
 tmp/
 *.tmp
+
+# Python bytecode (Blender build scripts)
+__pycache__/
+*.pyc
